@@ -1,56 +1,5 @@
 import sqlite3
-import pytest
 import app
-
-
-def create_test_db(db_path):
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE,
-                password_hash TEXT
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE fragen (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category_id INTEGER,
-                frage TEXT,
-                antwort_1 TEXT,
-                antwort_2 TEXT,
-                antwort_3 TEXT,
-                antwort_4 TEXT,
-                korrekt_index INTEGER,
-                creator_id INTEGER
-            )
-        """)
-
-        cursor.execute("""
-            CREATE TABLE scores (
-                user_id INTEGER,
-                punkte INTEGER,
-                max_punkte INTEGER,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        cursor.execute(
-            "INSERT INTO categories (name) VALUES (?)",
-            ("Allgemeinwissen",)
-        )
-
-        conn.commit()
 
 
 def test_hash_password_is_deterministic():
@@ -62,26 +11,32 @@ def test_hash_password_is_deterministic():
     assert len(h1) == 64
 
 
-def test_get_db_connection_returns_working_connection(tmp_path, monkeypatch):
+def test_init_db_creates_required_tables(tmp_path, monkeypatch):
     test_db = tmp_path / "test_quiz.db"
-    create_test_db(test_db)
     monkeypatch.setattr(app, "DB_NAME", str(test_db))
 
-    with app.get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT name FROM categories WHERE name = ?",
-            ("Allgemeinwissen",)
-        )
-        row = cursor.fetchone()
+    app.init_db()
 
-    assert row == ("Allgemeinwissen",)
+    with sqlite3.connect(app.DB_NAME) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        assert cursor.fetchone() is not None
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")
+        assert cursor.fetchone() is not None
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='fragen'")
+        assert cursor.fetchone() is not None
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'")
+        assert cursor.fetchone() is not None
 
 
 def test_auth_process_registers_new_user(tmp_path, monkeypatch):
     test_db = tmp_path / "test_quiz.db"
-    create_test_db(test_db)
     monkeypatch.setattr(app, "DB_NAME", str(test_db))
+    app.init_db()
 
     inputs = iter(["alice", "passwort123"])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
@@ -93,20 +48,33 @@ def test_auth_process_registers_new_user(tmp_path, monkeypatch):
 
     with sqlite3.connect(app.DB_NAME) as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT username FROM users WHERE username = ?",
-            ("alice",)
-        )
+        cursor.execute("SELECT username FROM users WHERE username = ?", ("alice",))
         row = cursor.fetchone()
 
     assert row == ("alice",)
 
 
-def test_get_db_connection_exits_when_db_missing(tmp_path, monkeypatch):
-    missing_db = tmp_path / "does_not_exist.db"
-    monkeypatch.setattr(app, "DB_NAME", str(missing_db))
+def test_auth_process_logs_in_existing_user(tmp_path, monkeypatch):
+    test_db = tmp_path / "test_quiz.db"
+    monkeypatch.setattr(app, "DB_NAME", str(test_db))
+    app.init_db()
 
-    with pytest.raises(SystemExit) as exc_info:
-        app.get_db_connection()
+    password = "secret123"
+    password_hash = app.hash_password(password)
 
-    assert exc_info.value.code == 1
+    with sqlite3.connect(app.DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            ("bob", password_hash)
+        )
+        conn.commit()
+        created_user_id = cursor.lastrowid
+
+    inputs = iter(["bob", "secret123"])
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+
+    user_id, username = app.auth_process()
+
+    assert username == "bob"
+    assert user_id == created_user_id

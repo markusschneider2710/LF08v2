@@ -25,10 +25,10 @@ jobs:
       - name: Check syntax
         run: python -m py_compile app.py
 
-      - name: Smoke test import
-        run: python -c "import app; print('OK')"
+      - name: Smoke test import and DB init
+        run: python -c "import app; app.init_db(); print('OK')"
 
-      - name: Run unit tests
+      - name: Run tests
         run: pytest -v test_app.py
 
   deploy:
