@@ -75,6 +75,67 @@ def init_db():
         conn.commit()
 
 
+# --- SEED DATEN ---
+def seed_data():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM categories")
+        if cursor.fetchone()[0] > 0:
+            return
+
+        cursor.execute("INSERT INTO categories (name) VALUES ('Allgemeinwissen')")
+        allgemein_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO categories (name) VALUES ('Videospiele')")
+        games_id = cursor.lastrowid
+
+        allgemein_fragen = [
+            ("Was ist die Hauptstadt von Frankreich?", "Paris", "Berlin", "Madrid", "Rom"),
+            ("Wie viele Kontinente gibt es?", "7", "5", "6", "8"),
+            ("Wer schrieb 'Faust'?", "Goethe", "Schiller", "Kafka", "Lessing"),
+            ("Welches Element hat das Symbol O?", "Sauerstoff", "Gold", "Silber", "Wasserstoff"),
+            ("Wie viele Tage hat ein Schaltjahr?", "366", "365", "364", "367"),
+            ("Was ist die größte Wüste der Welt?", "Antarktis", "Sahara", "Gobi", "Kalahari"),
+            ("Wer war der erste Mensch im All?", "Juri Gagarin", "Neil Armstrong", "Buzz Aldrin", "Yuri Leonov"),
+            ("Wie heißt der längste Fluss der Welt?", "Nil", "Amazonas", "Mississippi", "Yangtze"),
+            ("Was ist die Quadratwurzel von 64?", "8", "6", "7", "9"),
+            ("Welches Land hat die meisten Einwohner?", "Indien", "China", "USA", "Indonesien"),
+        ]
+
+        game_fragen = [
+            ("Wie heißt der Hauptcharakter in The Legend of Zelda?", "Link", "Zelda", "Ganon", "Epona"),
+            ("In welchem Spiel kommt 'Creeper' vor?", "Minecraft", "Terraria", "Roblox", "Fortnite"),
+            ("Welche Firma entwickelt die PlayStation?", "Sony", "Microsoft", "Nintendo", "Valve"),
+            ("Wie heißt der Klempner von Nintendo?", "Mario", "Luigi", "Wario", "Toad"),
+            ("In welchem Spiel gibt es die Map 'Dust2'?", "Counter-Strike", "Call of Duty", "Valorant", "Battlefield"),
+            ("Was sammelt Pac-Man?", "Punkte", "Münzen", "Sterne", "Diamanten"),
+            ("Welches Spiel ist ein Battle Royale?", "Fortnite", "FIFA", "GTA V", "Need for Speed"),
+            ("Wer ist der Endboss in vielen Mario-Spielen?", "Bowser", "Ganondorf", "Dr. Eggman", "Ridley"),
+            ("In welchem Spiel reitet man oft auf einem Pferd namens Roach?", "The Witcher 3", "Skyrim", "Red Dead Redemption", "Elden Ring"),
+            ("Wie heißt die Spielreihe mit 'Master Chief'?", "Halo", "Destiny", "Mass Effect", "Doom"),
+        ]
+
+        for f in allgemein_fragen:
+            cursor.execute("""
+                INSERT INTO fragen (
+                    category_id, frage, antwort_1, antwort_2, antwort_3, antwort_4, korrekt_index
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            """, (allgemein_id, *f))
+
+        for f in game_fragen:
+            cursor.execute("""
+                INSERT INTO fragen (
+                    category_id, frage, antwort_1, antwort_2, antwort_3, antwort_4, korrekt_index
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            """, (games_id, *f))
+
+        conn.commit()
+        print("[OK] Seed-Daten wurden eingefügt!")
+
+
 # --- AUTH & LOGIN ---
 def auth_process():
     print("\n" + "=" * 30)
@@ -442,6 +503,7 @@ def play_multi(u1_name, u1_id):
 # --- MAIN ---
 def main():
     init_db()
+    seed_data()
 
     while True:
         u_id, u_name = None, None
