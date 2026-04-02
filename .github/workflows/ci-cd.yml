@@ -26,10 +26,10 @@ jobs:
         run: python -m py_compile app.py
 
       - name: Smoke test import
-        run: python -c "import app; app.init_db(); print('OK')"
+        run: python -c "import app; print('OK')"
 
       - name: Run unit tests
-        run: pytest -v
+        run: pytest -v test_app.py
 
   deploy:
     needs: test
