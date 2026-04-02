@@ -1,4 +1,5 @@
 import sqlite3
+import pytest
 import app
 
 
@@ -66,11 +67,13 @@ def test_get_db_connection_returns_working_connection(tmp_path, monkeypatch):
     create_test_db(test_db)
     monkeypatch.setattr(app, "DB_NAME", str(test_db))
 
-    conn = app.get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM categories WHERE name = ?", ("Allgemeinwissen",))
-    row = cursor.fetchone()
-    conn.close()
+    with app.get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name FROM categories WHERE name = ?",
+            ("Allgemeinwissen",)
+        )
+        row = cursor.fetchone()
 
     assert row == ("Allgemeinwissen",)
 
@@ -90,7 +93,20 @@ def test_auth_process_registers_new_user(tmp_path, monkeypatch):
 
     with sqlite3.connect(app.DB_NAME) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT username FROM users WHERE username = ?", ("alice",))
+        cursor.execute(
+            "SELECT username FROM users WHERE username = ?",
+            ("alice",)
+        )
         row = cursor.fetchone()
 
     assert row == ("alice",)
+
+
+def test_get_db_connection_exits_when_db_missing(tmp_path, monkeypatch):
+    missing_db = tmp_path / "does_not_exist.db"
+    monkeypatch.setattr(app, "DB_NAME", str(missing_db))
+
+    with pytest.raises(SystemExit) as exc_info:
+        app.get_db_connection()
+
+    assert exc_info.value.code == 1

@@ -32,7 +32,7 @@ def auth_process():
     pw = input("Passwort: ").strip()
     h = hash_password(pw)
  
-    with sqlite3.connect(DB_NAME) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, password_hash FROM users WHERE username = ?", (user,))
         row = cursor.fetchone()
@@ -58,7 +58,7 @@ def add_content(user_id):
     print("4. Frage löschen")
     print("5. Zurück")
     wahl = input("Wahl: ")
-    with sqlite3.connect(DB_NAME) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         if wahl == "1":
             kat_name = input("Name der neuen Kategorie: ").strip()
@@ -108,7 +108,7 @@ def add_content(user_id):
  
 # --- STATISTIKEN ---
 def show_scores(u_id):
-    with sqlite3.connect(DB_NAME) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         print("\n" + "★"*30)
         print("      HIGHSCORES & STATS")
@@ -137,7 +137,7 @@ def show_scores(u_id):
  
 # --- SPIEL MODI ---
 def play_single(u_id):
-    with sqlite3.connect(DB_NAME) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, name FROM categories")
         kats = cursor.fetchall()
@@ -191,7 +191,7 @@ def play_multi(u1_name, u1_id):
     u2_id, u2_name = auth_process()
     if not u2_id or u2_id == u1_id: return print("Abbruch.")
  
-    with sqlite3.connect(DB_NAME) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT frage, antwort_1, antwort_2, antwort_3, antwort_4, korrekt_index FROM fragen")
         alle = cursor.fetchall()
